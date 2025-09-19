@@ -3,6 +3,67 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const loginBtn = document.getElementById("login-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const authStatus = document.getElementById("auth-status");
+  const usernameSpan = document.getElementById("username");
+  
+  let isTeacherLoggedIn = false;
+  let authCredentials = null;
+
+  // Function to check authentication status
+  async function checkAuthStatus() {
+    try {
+      const response = await fetch("/auth/status", {
+        headers: authCredentials ? {
+          'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+        } : {}
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        isTeacherLoggedIn = true;
+        authStatus.classList.remove("hidden");
+        loginBtn.classList.add("hidden");
+        usernameSpan.textContent = data.username;
+        signupForm.style.display = "block";
+        document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = "inline");
+      } else {
+        handleLogout();
+      }
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      handleLogout();
+    }
+  }
+
+  function handleLogout() {
+    isTeacherLoggedIn = false;
+    authCredentials = null;
+    authStatus.classList.add("hidden");
+    loginBtn.classList.remove("hidden");
+    signupForm.style.display = "none";
+    document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = "none");
+  }
+
+  // Event listener for login button
+  loginBtn.addEventListener("click", async () => {
+    const username = prompt("Enter teacher username:");
+    if (!username) return;
+    
+    const password = prompt("Enter password:");
+    if (!password) return;
+
+    authCredentials = { username, password };
+    await checkAuthStatus();
+    fetchActivities(); // Refresh the view
+  });
+
+  // Event listener for logout button
+  logoutBtn.addEventListener("click", () => {
+    handleLogout();
+    fetchActivities(); // Refresh the view
+  });
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -80,6 +141,9 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/unregister?email=${encodeURIComponent(email)}`,
         {
           method: "DELETE",
+          headers: authCredentials ? {
+            'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+          } : {}
         }
       );
 
@@ -124,6 +188,9 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
+          headers: authCredentials ? {
+            'Authorization': 'Basic ' + btoa(authCredentials.username + ':' + authCredentials.password)
+          } : {}
         }
       );
 
@@ -155,6 +222,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Hide signup form and delete buttons by default
+  signupForm.style.display = "none";
+  
   // Initialize app
+  handleLogout();  // Set initial state
   fetchActivities();
 });
